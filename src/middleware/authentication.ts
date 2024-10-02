@@ -1,23 +1,40 @@
 /** @format */
 
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
 import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import createError from "http-errors";
 
-export const authentication = async (
-  req: Request,
+interface CustomRequest extends Request {
+  user?: any;
+}
+
+const authentication = async (
+  req: CustomRequest,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const token =
-      req.body.token || req.query.token || req.headers["x-access-token"];
-    if (!token) throw createError.BadRequest("Token not found");
-    const verify = await jwt.verify(token, process.env.SECRET || "");
-    // if(verify.status === 'inactive') 
-    console.log(verify)
+      req.body.token ||
+      req.query.token ||
+      (req.headers["x-access-token"] as string);
+
+    if (!token) {
+      throw createError.Unauthorized("Token is not present");
+    } else {
+      const isVerify = await jwt.verify(token, process.env.SECRET as string);
+      req.user = isVerify;
+      if (req.user.status === "inactive")
+        throw createError.BadRequest("Profile set as inactive");
+      else if (req.user.status === "restricted")
+        throw createError.BadRequest("Profile set as restricted");
+      else if (req.user.status === "delete")
+        throw createError.BadRequest("Profile set as delete");
+      next();
+    }
   } catch (error) {
     next(error);
   }
 };
+
+export default authentication;

@@ -9,6 +9,10 @@ import { hashUserPassword } from "../utils/hash.password";
 import { generateToken } from "../utils/generate.token";
 import { comparePassowrd } from "../utils/compare.password";
 
+interface CustomRequest extends Request {
+  user?: any;
+}
+
 export const registerUser = async (
   req: Request,
   res: Response,
@@ -91,12 +95,81 @@ export const loginUser = async (
 };
 
 export const getUserdata = async (
-  req: Request,
+  req: CustomRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    console.log("User id:");
+    const user: IUser | null = await userModel
+      .findById(req.user._id)
+      .select("-password");
+    if (!user) {
+      throw createError.BadRequest("User data not found");
+    }
+    res.status(200).json({ message: "Fetch profile data", status: 200, user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateProfile = async (
+  req: CustomRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user: IUser | null = await userModel
+      .findById(req.user._id)
+      .select("-password");
+    if (!user) {
+      throw createError.BadRequest("User data not found");
+    }
+    const updatedUserData = await userModel.findByIdAndUpdate(
+      req.user._id,
+      {
+        $set: {
+          name: req.body.name || user.name,
+          profileImage: req.body.profileImage || user.profileImage,
+        },
+      },
+      { new: true }
+    );
+    res.status(200).json({
+      message: "Profile has been updated",
+      status: 200,
+      user: updatedUserData,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteUserProfile = async (
+  req: CustomRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user: IUser | null = await userModel
+      .findById(req.user._id)
+      .select("-password");
+    if (!user) {
+      throw createError.BadRequest("User data not found");
+    }
+    const deleteUserData = await userModel.findByIdAndUpdate(
+      req.user._id,
+      {
+        $set: {
+          status: "delete",
+        },
+      },
+      { new: true }
+    );
+    res.status(200).json({
+      message: "Profile has been deleted",
+      status: 200,
+      user: deleteUserData,
+    });
   } catch (error) {
     next(error);
   }
